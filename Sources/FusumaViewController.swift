@@ -125,6 +125,8 @@ public struct ImageMetadata {
     @IBOutlet weak var videoButton: UIButton!
     @IBOutlet weak var doneButton: UIButton!
     
+    
+    
     lazy var albumView  = FSAlbumView.instance()
     lazy var cameraView = FSCameraView.instance()
     lazy var videoView  = FSVideoCameraView.instance()
@@ -436,9 +438,9 @@ public struct ImageMetadata {
     }
     
     private func requestImage(with asset: PHAsset, cropRect: CGRect, completion: @escaping (PHAsset, UIImage) -> Void) {
-        
+       // self.albumView.indicatorView.startAnimating()
         DispatchQueue.global(qos: .default).async(execute: {
-            
+          
             let options = PHImageRequestOptions()
             options.deliveryMode = .highQualityFormat
             options.isNetworkAccessAllowed = true
@@ -459,7 +461,7 @@ public struct ImageMetadata {
                 guard let result = result else { return }
                     
                 DispatchQueue.main.async(execute: {
-                    
+               
                     completion(asset, result)
                 })
             }

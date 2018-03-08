@@ -12,7 +12,7 @@ import Photos
 public protocol FSAlbumViewDelegate: class {
     // Returns height ratio of crop image. e.g) 4:3 -> 7.5
     func getCropHeightRatio() -> CGFloat
-
+    
     func albumViewCameraRollUnauthorized()
     func albumViewCameraRollAuthorized()
 }
@@ -25,7 +25,8 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
     
     @IBOutlet weak var collectionViewConstraintHeight: NSLayoutConstraint!
     @IBOutlet weak var imageCropViewConstraintTop: NSLayoutConstraint!
-
+    @IBOutlet weak var indicatorView: UIActivityIndicatorView!
+    
     weak var delegate: FSAlbumViewDelegate? = nil
     var allowMultipleSelection = false
     
@@ -48,7 +49,7 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
     }
     
     fileprivate var dragDirection = Direction.up
-
+    
     private let imageCropViewOriginalConstraintTop: CGFloat = 50
     private let imageCropViewMinimalVisibleHeight: CGFloat  = 100
     private var imaginaryCollectionViewOffsetStartPosY: CGFloat = 0.0
@@ -65,9 +66,9 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
     func initialize() {
         
         if images != nil { return }
-		
-		self.isHidden = false
-
+        
+        self.isHidden = false
+        
         // Set Image Crop Ratio
         if let heightRatio = delegate?.getCropHeightRatio() {
             
@@ -96,7 +97,7 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
         imageCropViewContainer.layer.shadowOffset  = CGSize.zero
         
         collectionView.register(UINib(nibName: "FSAlbumViewCell", bundle: Bundle(for: self.classForCoder)), forCellWithReuseIdentifier: "FSAlbumViewCell")
-		collectionView.backgroundColor = fusumaBackgroundColor
+        collectionView.backgroundColor = fusumaBackgroundColor
         collectionView.allowsMultipleSelection = allowMultipleSelection
         
         // Never load photos Unless the user allows to access to photo album
@@ -160,11 +161,11 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
             // Scroll event of CollectionView is preferred.
             if (dragDirection == Direction.up   && dragStartPos.y < cropBottomY + dragDiff) ||
                 (dragDirection == Direction.down && dragStartPos.y > cropBottomY) {
-                    
-                    dragDirection = Direction.stop
-                    
-                    imageCropView.changeScrollable(false)
-                    
+                
+                dragDirection = Direction.stop
+                
+                imageCropView.changeScrollable(false)
+                
             } else {
                 
                 imageCropView.changeScrollable(true)
@@ -227,7 +228,7 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
                                animations: {
                                 
                                 self.layoutIfNeeded()
-                
+                                
                 }, completion: nil)
                 
                 dragDirection = Direction.down
@@ -246,7 +247,7 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
                                animations: {
                                 
                                 self.layoutIfNeeded()
-                
+                                
                 }, completion: nil)
                 
                 dragDirection = Direction.up
@@ -269,15 +270,15 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
         let asset = self.images[(indexPath as NSIndexPath).item]
         
         self.imageManager?.requestImage(for: asset,
-            targetSize: cellSize,
-            contentMode: .aspectFill,
-            options: nil) {
-                result, info in
-                
-                if cell.tag == currentTag {
-                    
-                    cell.image = result
-                }
+                                        targetSize: cellSize,
+                                        contentMode: .aspectFill,
+                                        options: nil) {
+                                            result, info in
+                                            
+                                            if cell.tag == currentTag {
+                                                
+                                                cell.image = result
+                                            }
         }
         
         return cell
@@ -424,7 +425,7 @@ internal extension IndexSet {
         indexPaths.reserveCapacity(self.count)
         
         (self as NSIndexSet).enumerate({idx, stop in
-        
+            
             indexPaths.append(IndexPath(item: idx, section: section))
         })
         
@@ -445,24 +446,34 @@ private extension FSAlbumView {
             options.isNetworkAccessAllowed = true
             
             self.imageManager?.requestImage(for: asset,
-                targetSize: CGSize(width: asset.pixelWidth, height: asset.pixelHeight),
-                contentMode: .aspectFill,
-                options: options) {
-                    result, info in
-                    
-                    DispatchQueue.main.async(execute: {
-                        
-                        self.imageCropView.imageSize = CGSize(width: asset.pixelWidth,
-                                                              height: asset.pixelHeight)
-                        self.imageCropView.image = result
-                        
-                        if let result = result,
-                            !self.selectedAssets.contains(asset) {
+                                            targetSize: CGSize(width: asset.pixelWidth, height: asset.pixelHeight),
+                                            contentMode: .aspectFill,
+                                            options: options) {
+                                                result, info in
+                                                
+                                                DispatchQueue.main.async(execute: {
+                                                    
+                                                    self.imageCropView.imageSize = CGSize(width: asset.pixelWidth,
+                                                                                          height: asset.pixelHeight)
+                                                    self.imageCropView.image = result
+                                                    debugPrint(self.imageCropView.image.size.width)
+                                                    if let result = result,
+                                                        !self.selectedAssets.contains(asset) {
+                                                        
+                                                        self.selectedAssets.append(asset)
+                                                        self.selectedImages.append(result)
+                                                      
+                                                    }
+                                                    self.indicatorView.isHidden = false
+                                                    self.indicatorView.startAnimating()
+                                                    
+                                                    if (self.imageCropView.image.size.width >= 500.0) {
+                                                        self.indicatorView.stopAnimating()
+                                                        self.indicatorView.isHidden = true
+                                                    }
+                                                })
+                                                
                             
-                            self.selectedAssets.append(asset)
-                            self.selectedImages.append(result)
-                        }
-                    })
             }
         })
     }
@@ -475,7 +486,7 @@ private extension FSAlbumView {
             switch status {
                 
             case .authorized:
-            
+                
                 self.imageManager = PHCachingImageManager()
                 
                 if let images = self.images, images.count > 0 {
@@ -501,7 +512,7 @@ private extension FSAlbumView {
             }
         }
     }
-
+    
     // MARK: - Asset Caching
     
     func resetCachedAssets() {
@@ -509,7 +520,7 @@ private extension FSAlbumView {
         imageManager?.stopCachingImagesForAllAssets()
         previousPreheatRect = CGRect.zero
     }
- 
+    
     func updateCachedAssets() {
         
         guard let collectionView = self.collectionView else { return }
@@ -528,10 +539,10 @@ private extension FSAlbumView {
                 self.previousPreheatRect,
                 andRect: preheatRect,
                 removedHandler: {removedRect in
-                
+                    
                     let indexPaths = self.collectionView.aapl_indexPathsForElementsInRect(removedRect)
                     removedIndexPaths += indexPaths
-                
+                    
             }, addedHandler: {addedRect in
                 
                 let indexPaths = self.collectionView.aapl_indexPathsForElementsInRect(addedRect)
@@ -542,14 +553,14 @@ private extension FSAlbumView {
             let assetsToStopCaching = self.assetsAtIndexPaths(removedIndexPaths)
             
             self.imageManager?.startCachingImages(for: assetsToStartCaching,
-                targetSize: cellSize,
-                contentMode: .aspectFill,
-                options: nil)
+                                                  targetSize: cellSize,
+                                                  contentMode: .aspectFill,
+                                                  options: nil)
             
             self.imageManager?.stopCachingImages(for: assetsToStopCaching,
-                targetSize: cellSize,
-                contentMode: .aspectFill,
-                options: nil)
+                                                 targetSize: cellSize,
+                                                 contentMode: .aspectFill,
+                                                 options: nil)
             
             self.previousPreheatRect = preheatRect
         }
@@ -565,25 +576,25 @@ private extension FSAlbumView {
             let newMinY = newRect.minY
             
             if newMaxY > oldMaxY {
-            
+                
                 let rectToAdd = CGRect(x: newRect.origin.x, y: oldMaxY, width: newRect.size.width, height: (newMaxY - oldMaxY))
                 addedHandler(rectToAdd)
             }
             
             if oldMinY > newMinY {
-            
+                
                 let rectToAdd = CGRect(x: newRect.origin.x, y: newMinY, width: newRect.size.width, height: (oldMinY - newMinY))
                 addedHandler(rectToAdd)
             }
             
             if newMaxY < oldMaxY {
-            
+                
                 let rectToRemove = CGRect(x: newRect.origin.x, y: newMaxY, width: newRect.size.width, height: (oldMaxY - newMaxY))
                 removedHandler(rectToRemove)
             }
             
             if oldMinY < newMinY {
-            
+                
                 let rectToRemove = CGRect(x: newRect.origin.x, y: oldMinY, width: newRect.size.width, height: (newMinY - oldMinY))
                 removedHandler(rectToRemove)
             }
@@ -604,7 +615,7 @@ private extension FSAlbumView {
         assets.reserveCapacity(indexPaths.count)
         
         for indexPath in indexPaths {
-        
+            
             let asset = self.images[(indexPath as NSIndexPath).item]
             assets.append(asset)
         }
@@ -612,3 +623,4 @@ private extension FSAlbumView {
         return assets
     }
 }
+
